@@ -1,0 +1,54 @@
+#!/bin/bash
+URLS_DIR="${HOME}/.download_youtube"
+URLS_PATH="${URLS_DIR}/urls"
+
+downloadVideo(){
+    youtube-dl -x --audio-format mp3 --embed-thumbnail --add-metadata --metadata-from-title "%(artist)s - %(title)s" -o "Music/%(title)s.%(ext)s" "$1"
+    echo "$1" >> "$URLS_PATH"
+}
+
+#Create tmp cache
+tmpurls=$(mktemp /tmp/video_urls.XXXXXX)
+
+#Read file line by line and get all urls
+#End of file must be newline. If not, last section will be ignored
+while read -r line
+do
+    echo "Getting urls of playlist $line"
+    youtube-dl -i -o "http://www.youtube.com/watch?v=%(id)s" --get-filename "$line" | tee "$tmpurls"
+done < "$1"
+
+echo "Done"
+#sort $tmpurls | uniq -u > urls
+
+if [ ! -e "$URLS_PATH" ]; then
+    echo "Cache doesn't exist. One will be created"
+    if ! (mkdir "$URLS_DIR" && touch "$URLS_PATH"); then
+	echo "Error creating cache file. No videos downloaded"
+	exit 1
+    fi
+fi
+
+while read -r line
+do
+    if ! grep -q "$line" "$URLS_PATH"; then
+	echo -e "\e[33m● \e[0m Download: $line"
+	downloadVideo "$line"
+    else
+	echo -e "\e[32m● \e[0m From Cache: $line"
+    fi
+done < "$tmpurls"
+
+rm $tmpurls
+
+
+
+#tmpurls=$(mktemp /tmp/videos-urls.XXXXXX)
+#xargs -a "$1" -n1 youtube-dl -i -o "http://www.youtube.com/watch?v=%(id)s" --get-filename >> $tmpurls
+
+
+#sort $tmpurls | uniq -u > urls
+
+#xargs -a urls -n1 youtube-dl -x --audio-format mp3 --embed-thumbnail --add-metadata --metadata-from-title "%(artist)s - %(title)s" -o "Music/%(title)s.%(ext)s"
+
+#rm $tmpurls
